@@ -2,13 +2,14 @@ import torch
 from torchvision.models.resnet import resnet50
 import torch.backends.cudnn as cudnn
 from archs.cifar_resnet import resnet as resnet_cifar
+from archs.mnist_mlp import mlp as mlp_mnist
 from datasets import get_normalize_layer
 from torch.nn.functional import interpolate
 
 # resnet50 - the classic ResNet-50, sized for ImageNet
 # cifar_resnet20 - a 20-layer residual network sized for CIFAR
 # cifar_resnet110 - a 110-layer residual network sized for CIFAR
-ARCHITECTURES = ["resnet50", "cifar_resnet20", "cifar_resnet110"]
+ARCHITECTURES = ["resnet50", "cifar_resnet20", "cifar_resnet110", "mnist_mlp"]
 
 def get_architecture(arch: str, dataset: str) -> torch.nn.Module:
     """ Return a neural network (with random weights)
@@ -24,5 +25,7 @@ def get_architecture(arch: str, dataset: str) -> torch.nn.Module:
         model = resnet_cifar(depth=20, num_classes=10).cuda()
     elif arch == "cifar_resnet110":
         model = resnet_cifar(depth=110, num_classes=10).cuda()
+    elif arch == "mnist_mlp":
+        model = mlp_mnist(input_size = 28 ** 2, hidden_size = 200, num_classes=10).cuda()
     normalize_layer = get_normalize_layer(dataset)
     return torch.nn.Sequential(normalize_layer, model)

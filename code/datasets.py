@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 IMAGENET_LOC_ENV = "IMAGENET_DIR"
 
 # list of all datasets
-DATASETS = ["imagenet", "cifar10"]
+DATASETS = ["imagenet", "cifar10", "mnist"]
 
 
 def get_dataset(dataset: str, split: str) -> Dataset:
@@ -19,6 +19,8 @@ def get_dataset(dataset: str, split: str) -> Dataset:
         return _imagenet(split)
     elif dataset == "cifar10":
         return _cifar10(split)
+    elif dataset == "mnist":
+        return _mnist(split)
 
 
 def get_num_classes(dataset: str):
@@ -27,14 +29,19 @@ def get_num_classes(dataset: str):
         return 1000
     elif dataset == "cifar10":
         return 10
+    elif dataset == "mnist":
+        return 10
 
-
+#what is actually the best way to go about data normalization?
+#will mnist have 1 channel in the pytorch, or just not have any channels attributed to it?
 def get_normalize_layer(dataset: str) -> torch.nn.Module:
     """Return the dataset's normalization layer"""
     if dataset == "imagenet":
         return NormalizeLayer(_IMAGENET_MEAN, _IMAGENET_STDDEV)
     elif dataset == "cifar10":
         return NormalizeLayer(_CIFAR10_MEAN, _CIFAR10_STDDEV)
+    elif dataset == "mnist":
+        return NormalizeLayer(_MNIST_MEAN, _MNIST_STDDEV)
 
 
 _IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -43,6 +50,17 @@ _IMAGENET_STDDEV = [0.229, 0.224, 0.225]
 _CIFAR10_MEAN = [0.4914, 0.4822, 0.4465]
 _CIFAR10_STDDEV = [0.2023, 0.1994, 0.2010]
 
+_MNIST_MEAN = [0.1309]
+_MNIST_STDDEV = [0.3084]
+
+def _mnist(split: str) -> Dataset:
+    if split == "train":
+        return datasets.MNIST("./dataset_cache", train=True, download=True, transform=transforms.Compose([
+            transforms.RandomCrop(28, padding=4),
+            transforms.ToTensor()
+        ]))
+    elif split == "test":
+        return datasets.MNIST("./dataset_cache", train=False, download=True, transform=transforms.ToTensor())
 
 def _cifar10(split: str) -> Dataset:
     if split == "train":
