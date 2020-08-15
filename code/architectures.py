@@ -26,6 +26,6 @@ def get_architecture(arch: str, dataset: str, noise_std = []) -> torch.nn.Module
     elif arch == "cifar_resnet110":
         model = resnet_cifar(depth=110, num_classes=10).cuda()
     elif arch == "mnist_mlp":
-        model = mlp_mnist(input_size = 28 ** 2, hidden_size = 200, num_classes=10, noise_std = noise_std).cuda()
+        model = mlp_mnist(input_size = 28 ** 2, hidden_size = 784, num_classes=10, noise_std = noise_std).cuda()
     normalize_layer = get_normalize_layer(dataset)
     return torch.nn.Sequential(normalize_layer, model)
