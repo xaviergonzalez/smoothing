@@ -20,7 +20,7 @@ parser.add_argument("--max", type=int, default=-1, help="stop after this many ex
 parser.add_argument("--split", choices=["train", "test"], default="test", help="train or test set")
 parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
-parser.add_argument('--noise_std_lst', nargs = '+', type = int, default=[], help='noise for each layer')
+parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 args = parser.parse_args()
 
 if __name__ == "__main__":

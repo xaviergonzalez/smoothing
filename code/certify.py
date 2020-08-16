@@ -1,6 +1,4 @@
 # evaluate a smoothed classifier on a dataset
-# added this comment to see if I could push to github
-# extra change to fix username
 import argparse
 import os
 import setGPU
@@ -23,12 +21,16 @@ parser.add_argument("--split", choices=["train", "test"], default="test", help="
 parser.add_argument("--N0", type=int, default=100)
 parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
+parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
+parser.add_argument('--layered_GNI', dest='layered_GNI', action='store_true')
+parser.add_argument('--no_layered_GNI', dest='layered_GNI', action='store_false')
+parser.set_defaults(feature=False)
 args = parser.parse_args()
 
 if __name__ == "__main__":
     # load the base classifier
     checkpoint = torch.load(args.base_classifier)
-    base_classifier = get_architecture(checkpoint["arch"], args.dataset)
+    base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst)
     base_classifier.load_state_dict(checkpoint['state_dict'])
 
     # create the smooothed classifier g
@@ -53,7 +55,10 @@ if __name__ == "__main__":
         before_time = time()
         # certify the prediction of g around x
         x = x.cuda()
-        prediction, radius = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
+        if args.layered_GNI:
+            prediction, radius = smoothed_classifier.jac_certify(x, args.N0, args.N, args.alpha, args.batch, args.noise_std_lst)
+        else:
+            prediction, radius = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
         after_time = time()
         correct = int(prediction == label)
 

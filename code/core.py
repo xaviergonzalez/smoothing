@@ -49,6 +49,44 @@ class Smooth(object):
         else:
             radius = self.sigma * norm.ppf(pABar)
             return cAHat, radius
+        
+    def jac_certify(self, x: torch.tensor, n0: int, n: int, alpha: float, batch_size: int, noise_std_lst) -> (int, float):
+        """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
+        Differs from certify by returning a radius based on noising later layers
+        With probability at least 1 - alpha, the class returned by this method will equal g(x), and g's prediction will
+        robust within a L2 ball of radius R around x.
+
+        :param x: the input [channel x height x width]
+        :param n0: the number of Monte Carlo samples to use for selection
+        :param n: the number of Monte Carlo samples to use for estimation
+        :param alpha: the failure probability
+        :param batch_size: batch size to use when evaluating the base classifier
+        :return: (predicted class, certified radius)
+                 in the case of abstention, the class will be ABSTAIN and the radius 0.
+        """
+        self.base_classifier.eval()
+        #find approximate backwards jacobian
+        tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
+        A = np.transpose(tst_lst[1]) @ tst_lst[1]
+        D = np.matrix.diagonal(A)
+        s = 1 / D * noise_std_lst[1] * (.3084 ** 2)
+        # draw samples of f(x+ epsilon)
+        counts_selection = self._sample_noise(x, n0, batch_size)
+        # use these samples to take a guess at the top class
+        cAHat = counts_selection.argmax().item()
+        # draw more samples of f(x + epsilon)
+        counts_estimation = self._sample_noise(x, n, batch_size)
+        # use these samples to estimate a lower bound on pA
+        nA = counts_estimation[cAHat].item()
+        pABar = self._lower_confidence_bound(nA, n, alpha)
+        if pABar < 0.5:
+            return Smooth.ABSTAIN, 0.0
+        else:
+            radius = (self.sigma + s) * norm.ppf(pABar)
+            radius = np.log(radius)
+            radius = np.mean(radius)
+            radius = np.exp(radius) #computing an approximate average radius
+            return cAHat, radius
 
     def predict(self, x: torch.tensor, n: int, alpha: float, batch_size: int) -> int:
         """ Monte Carlo algorithm for evaluating the prediction of g at x.  With probability at least 1 - alpha, the
