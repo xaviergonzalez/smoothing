@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
 
-matplotlib.use("TkAgg")
+# matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from typing import *
 import pandas as pd
@@ -151,59 +151,127 @@ def markdown_table_certified_accuracy(outfile: str, radius_start: float, radius_
 
 
 if __name__ == "__main__":
+#     latex_table_certified_accuracy(
+#         "TST/latex/mnist_012", 0, 0.5, 0.1, [
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_0"), "no hidden layer noise"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_012"), "hidden layer noise: $\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_050"), "hidden layer noise: $\sigma = 0.50$"),
+#         ])
+#     plot_certified_accuracy(
+#         "TST/plots/mnist_012", "MNIST, data noised with $\sigma = 0.12$", 1.5, [
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_0"), "no hidden layer noise"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_012"), "hidden layer noise: $\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_012_050"), "hidden layer noise: $\sigma = 0.50$"),
+#         ])
     latex_table_certified_accuracy(
-        "analysis/latex/vary_noise_cifar10", 0.25, 1.5, 0.25, [
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "$\sigma = 0.12$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+        "TST/latex/mnist_025", 0, 0.5, 0.1, [
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_0"), "no hidden layer noise"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_012"), "hidden layer noise: $\sigma = 0.12$"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_025"), "hidden layer noise: $\sigma = 0.25$"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_05"), "hidden layer noise: $\sigma = 0.50$"),
         ])
-    markdown_table_certified_accuracy(
-        "analysis/markdown/vary_noise_cifar10", 0.25, 1.5, 0.25, [
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "&sigma; = 0.12"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "&sigma; = 0.25"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "&sigma; = 0.50"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "&sigma; = 1.00"),
+    plot_certified_accuracy(
+        "TST/plots/mnist_025", "MNIST, data noised with $\sigma = 0.25$", 1.5, [
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_0"), "no hidden layer noise"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_012"), "hidden layer noise: $\sigma = 0.12$"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_025"), "hidden layer noise: $\sigma = 0.25$"),
+            Line(ApproximateAccuracy("MEAN_certification_noise_layer_025_05"), "hidden layer noise: $\sigma = 0.50$"),
         ])
     latex_table_certified_accuracy(
-        "analysis/latex/vary_noise_imagenet", 0.5, 3.0, 0.5, [
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
-        ])
-    markdown_table_certified_accuracy(
-        "analysis/markdown/vary_noise_imagenet", 0.5, 3.0, 0.5, [
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "&sigma; = 0.25"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "&sigma; = 0.50"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "&sigma; = 1.00"),
+        "TST/latex/MIN_mnist_025", 0, 0.5, 0.1, [
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_0"), "no hidden layer noise"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_012"), "hidden layer noise: $\sigma = 0.12$"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_025"), "hidden layer noise: $\sigma = 0.25$"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_05"), "hidden layer noise: $\sigma = 0.50$"),
         ])
     plot_certified_accuracy(
-        "analysis/plots/vary_noise_cifar10", "CIFAR-10, vary $\sigma$", 1.5, [
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "$\sigma = 0.12$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+        "TST/plots/MIN_mnist_025", "MNIST, data noised with $\sigma = 0.25$", 1.5, [
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_0"), "no hidden layer noise"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_012"), "hidden layer noise: $\sigma = 0.12$"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_025"), "hidden layer noise: $\sigma = 0.25$"),
+            Line(ApproximateAccuracy("MIN_certification_noise_layer_025_05"), "hidden layer noise: $\sigma = 0.50$"),
         ])
-    plot_certified_accuracy(
-        "analysis/plots/vary_train_noise_cifar_050", "CIFAR-10, vary train noise, $\sigma=0.5$", 1.5, [
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.50"), "train $\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "train $\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_0.50"), "train $\sigma = 1.00$"),
-        ])
-    plot_certified_accuracy(
-        "analysis/plots/vary_train_noise_imagenet_050", "ImageNet, vary train noise, $\sigma=0.5$", 1.5, [
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.50"), "train $\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "train $\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_0.50"), "train $\sigma = 1.00$"),
-        ])
-    plot_certified_accuracy(
-        "analysis/plots/vary_noise_imagenet", "ImageNet, vary $\sigma$", 4, [
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
-        ])
-    plot_certified_accuracy(
-        "analysis/plots/high_prob", "Approximate vs. High-Probability", 2.0, [
-            Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "Approximate"),
-            Line(HighProbAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50", 0.001, 0.001), "High-Prob"),
-        ])
+#     latex_table_certified_accuracy(
+#         "TST/latex/mnist_050", 0, 0.5, 0.1, [
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_0"), "no hidden layer noise"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_012"), "hidden layer noise: $\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_05"), "hidden layer noise: $\sigma = 0.50$"),
+#         ])
+#     plot_certified_accuracy(
+#         "TST/plots/mnist_050", "MNIST, data noised with $\sigma = 0.5$", 1.5, [
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_0"), "no hidden layer noise"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_012"), "hidden layer noise: $\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_05_05"), "hidden layer noise: $\sigma = 0.50$"),
+#         ])
+#     latex_table_certified_accuracy(
+#         "TST/latex/comparing_noise", 0, 0.5, 0.1, [
+#             Line(ApproximateAccuracy("certification_baseline"), "data: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_0_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_0_075"), "hidden layer noise: $\sigma = 0.75$"),
+#         ])
+#     plot_certified_accuracy(
+#         "TST/plots/comparing noise", "Comparing the effect of noise on different layers$", 1.5, [
+#             Line(ApproximateAccuracy("certification_baseline"), "data: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_0_025"), "hidden layer noise: $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("MEAN_certification_noise_layer_0_075"), "hidden layer noise: $\sigma = 0.75$"),
+#         ])
+#     latex_table_certified_accuracy(
+#         "analysis/latex/vary_noise_cifar10", 0.25, 1.5, 0.25, [
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "$\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+#         ])
+#     markdown_table_certified_accuracy(
+#         "analysis/markdown/vary_noise_cifar10", 0.25, 1.5, 0.25, [
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "&sigma; = 0.12"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "&sigma; = 0.25"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "&sigma; = 0.50"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "&sigma; = 1.00"),
+#         ])
+#     latex_table_certified_accuracy(
+#         "analysis/latex/vary_noise_imagenet", 0.5, 3.0, 0.5, [
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+#         ])
+#     markdown_table_certified_accuracy(
+#         "analysis/markdown/vary_noise_imagenet", 0.5, 3.0, 0.5, [
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "&sigma; = 0.25"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "&sigma; = 0.50"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "&sigma; = 1.00"),
+#         ])
+#     plot_certified_accuracy(
+#         "analysis/plots/vary_noise_cifar10", "CIFAR-10, vary $\sigma$", 1.5, [
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.12/test/sigma_0.12"), "$\sigma = 0.12$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+#         ])
+#     plot_certified_accuracy(
+#         "analysis/plots/vary_train_noise_cifar_050", "CIFAR-10, vary train noise, $\sigma=0.5$", 1.5, [
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.25/test/sigma_0.50"), "train $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_0.50/test/sigma_0.50"), "train $\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/cifar10/resnet110/noise_1.00/test/sigma_0.50"), "train $\sigma = 1.00$"),
+#         ])
+#     plot_certified_accuracy(
+#         "analysis/plots/vary_train_noise_imagenet_050", "ImageNet, vary train noise, $\sigma=0.5$", 1.5, [
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.50"), "train $\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "train $\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_0.50"), "train $\sigma = 1.00$"),
+#         ])
+#     plot_certified_accuracy(
+#         "analysis/plots/vary_noise_imagenet", "ImageNet, vary $\sigma$", 4, [
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.25/test/sigma_0.25"), "$\sigma = 0.25$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "$\sigma = 0.50$"),
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_1.00/test/sigma_1.00"), "$\sigma = 1.00$"),
+#         ])
+#     plot_certified_accuracy(
+#         "analysis/plots/high_prob", "Approximate vs. High-Probability", 2.0, [
+#             Line(ApproximateAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50"), "Approximate"),
+#             Line(HighProbAccuracy("data/certify/imagenet/resnet50/noise_0.50/test/sigma_0.50", 0.001, 0.001), "High-Prob"),
+#         ])

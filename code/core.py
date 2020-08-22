@@ -4,6 +4,8 @@ import numpy as np
 from math import ceil
 from statsmodels.stats.proportion import proportion_confint
 
+from scipy.stats import gmean
+
 
 class Smooth(object):
     """A smoothed classifier g """
@@ -67,9 +69,13 @@ class Smooth(object):
         self.base_classifier.eval()
         #find approximate backwards jacobian
         tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
-        A = np.transpose(tst_lst[1]) @ tst_lst[1]
-        D = np.matrix.diagonal(A)
-        s = 1 / D * noise_std_lst[1] * (.3084 ** 2)
+        A = tst_lst[0]
+        R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
+        S = (noise_std_lst[1] ** 2) * (R @ np.transpose(R))
+        S = S + (self.sigma ** 2) * np.identity(444)
+        eigvals, _ = np.linalg.eig(S)
+        radii = np.sqrt(eigvals)
+        s = np.min(radii) #area
         # draw samples of f(x+ epsilon)
         counts_selection = self._sample_noise(x, n0, batch_size)
         # use these samples to take a guess at the top class
@@ -82,10 +88,7 @@ class Smooth(object):
         if pABar < 0.5:
             return Smooth.ABSTAIN, 0.0
         else:
-            radius = (self.sigma + s) * norm.ppf(pABar)
-            radius = np.log(radius)
-            radius = np.mean(radius)
-            radius = np.exp(radius) #computing an approximate average radius
+            radius = s * norm.ppf(pABar)
             return cAHat, radius
 
     def predict(self, x: torch.tensor, n: int, alpha: float, batch_size: int) -> int:
@@ -111,6 +114,7 @@ class Smooth(object):
         else:
             return top2[0]
 
+    #need to think about how to rework to be compatible with MLP...
     def _sample_noise(self, x: torch.tensor, num: int, batch_size) -> np.ndarray:
         """ Sample the base classifier's prediction under noisy corruptions of the input x.
 
@@ -125,8 +129,11 @@ class Smooth(object):
                 this_batch_size = min(batch_size, num)
                 num -= this_batch_size
 
-                batch = x.repeat((this_batch_size, 1, 1, 1))
+#                 batch = x.repeat((this_batch_size, 1, 1, 1))
+                batch = x.repeat((this_batch_size, 1))
+#                 print(np.shape(batch))
                 noise = torch.randn_like(batch, device='cuda') * self.sigma
+#                 print(noise)
                 predictions = self.base_classifier(batch + noise).argmax(1)
                 counts += self._count_arr(predictions.cpu().numpy(), self.num_classes)
             return counts

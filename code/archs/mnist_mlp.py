@@ -19,10 +19,10 @@ class MLP(nn.Module):
         self.fc3 = nn.Linear(second_layer, num_classes)
         self.input_size = input_size
         self.noise_std = noise_std
-        geotorch.orthogonal(self.fc1, "weight") #first weight is orthogonal
+#         geotorch.orthogonal(self.fc1, "weight") #first weight is orthogonal
     
     def forward(self, x):
-        x = x.reshape(-1, self.input_size) #flatten layer
+#         x = x.reshape(-1, self.input_size) #flatten layer
         if not self.training:
             x = x + self.noise_std[0] * torch.randn_like(x) #add noise to data
         h1 = self.fc1(x)

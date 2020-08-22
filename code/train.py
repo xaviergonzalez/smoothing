@@ -15,6 +15,8 @@ import time
 import datetime
 from train_utils import AverageMeter, accuracy, init_logfile, log
 
+import numpy as np
+
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('dataset', type=str, choices=DATASETS)
 parser.add_argument('arch', type=str, choices=ARCHITECTURES)
