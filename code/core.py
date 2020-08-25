@@ -6,6 +6,8 @@ from statsmodels.stats.proportion import proportion_confint
 
 from scipy.stats import gmean
 
+from time import time
+
 
 class Smooth(object):
     """A smoothed classifier g """
@@ -52,7 +54,53 @@ class Smooth(object):
             radius = self.sigma * norm.ppf(pABar)
             return cAHat, radius
         
-    def jac_certify(self, x: torch.tensor, n0: int, n: int, alpha: float, batch_size: int, noise_std_lst) -> (int, float):
+    def jac_certify(self, x: torch.tensor, n0: int, n: int, alpha: float, batch_size: int, noise_std_lst, vol) -> (int, float):
+        """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
+        Differs from certify by returning a radius based on noising later layers
+        With probability at least 1 - alpha, the class returned by this method will equal g(x), and g's prediction will
+        robust within a L2 ball of radius R around x.
+
+        :param x: the input [channel x height x width]
+        :param n0: the number of Monte Carlo samples to use for selection
+        :param n: the number of Monte Carlo samples to use for estimation
+        :param alpha: the failure probability
+        :param batch_size: batch size to use when evaluating the base classifier
+        :param noise_std_lst: lst of noise to apply to each layer (put 0 for data layer)
+        :param vol: boolean to indicate whether to return the volume of robust ellipsoid, or the minimum radius
+        :return: (predicted class, certified radius)
+                 in the case of abstention, the class will be ABSTAIN and the radius 0.
+        """
+        self.base_classifier.eval()
+        #find approximate backwards jacobian
+        tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
+        A = tst_lst[0]
+        R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
+        B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R))
+        B = B + (self.sigma ** 2) * np.identity(444) #pullback noise
+        F = (noise_std_lst[1] ** 2) * np.identity(444) + (self.sigma ** 2) * (A @ np.transpose(A)) #accumulated noise at hidden layer
+        eigvals, _ = np.linalg.eig(B)
+        Feigvals, _ = np.linalg.eig(F)
+        radii = np.sqrt(eigvals)
+        if vol:
+            s = gmean(radii) #area (ellipsoid)
+        else:
+            s = np.min(radii) #sphere (tight)
+        # draw samples of f(x+ epsilon)
+        counts_selection = self._sample_noise(x, n0, batch_size)
+        # use these samples to take a guess at the top class
+        cAHat = counts_selection.argmax().item()
+        # draw more samples of f(x + epsilon)
+        counts_estimation = self._sample_noise(x, n, batch_size)
+        # use these samples to estimate a lower bound on pA
+        nA = counts_estimation[cAHat].item()
+        pABar = self._lower_confidence_bound(nA, n, alpha)
+        if pABar < 0.5:
+            return Smooth.ABSTAIN, 0.0, np.mean(eigvals), s, np.mean(Feigvals), gmean(np.sqrt(Feigvals))
+        else:
+            radius = s * norm.ppf(pABar)
+            return cAHat, radius, np.mean(eigvals), s, np.mean(Feigvals), gmean(np.sqrt(Feigvals))
+        
+    def jac_certify_check(self, x: torch.tensor, label: int, n: int, alpha: float, batch_size: int, noise_std_lst) -> (int, float):
         """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
         Differs from certify by returning a radius based on noising later layers
         With probability at least 1 - alpha, the class returned by this method will equal g(x), and g's prediction will
@@ -73,23 +121,30 @@ class Smooth(object):
         R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
         S = (noise_std_lst[1] ** 2) * (R @ np.transpose(R))
         S = S + (self.sigma ** 2) * np.identity(444)
-        eigvals, _ = np.linalg.eig(S)
+        eigvals, eigvecs = np.linalg.eig(S)
         radii = np.sqrt(eigvals)
-        s = np.min(radii) #area
-        # draw samples of f(x+ epsilon)
-        counts_selection = self._sample_noise(x, n0, batch_size)
-        # use these samples to take a guess at the top class
-        cAHat = counts_selection.argmax().item()
         # draw more samples of f(x + epsilon)
         counts_estimation = self._sample_noise(x, n, batch_size)
         # use these samples to estimate a lower bound on pA
-        nA = counts_estimation[cAHat].item()
+        nA = counts_estimation[label].item()
         pABar = self._lower_confidence_bound(nA, n, alpha)
+        x = x.cpu().numpy()
         if pABar < 0.5:
-            return Smooth.ABSTAIN, 0.0
+            return Smooth.ABSTAIN, Smooth.ABSTAIN
         else:
-            radius = s * norm.ppf(pABar)
-            return cAHat, radius
+            radii = radii * norm.ppf(pABar)
+            robust = 1
+            for i in range(len(x)):
+                y = np.copy(x)
+                y = x + radii[i] * eigvecs[:, i]
+                y = y.astype(np.float32)
+                y = torch.from_numpy(y)
+                y = y.cuda()
+                # make the prediction
+                prediction = self.predict(y, n, alpha, batch_size)
+                correct = int(prediction == label)
+                robust = robust * correct
+            return label, robust
 
     def predict(self, x: torch.tensor, n: int, alpha: float, batch_size: int) -> int:
         """ Monte Carlo algorithm for evaluating the prediction of g at x.  With probability at least 1 - alpha, the

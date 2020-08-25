@@ -23,12 +23,12 @@ class MLP(nn.Module):
     
     def forward(self, x):
 #         x = x.reshape(-1, self.input_size) #flatten layer
-        if not self.training:
-            x = x + self.noise_std[0] * torch.randn_like(x) #add noise to data
+#         if not self.training:
+        x = x + self.noise_std[0] * torch.randn_like(x) #add noise to data
         h1 = self.fc1(x)
 #        h1 = self.relu(h1)
-        if not self.training:
-            h1 = h1 + self.noise_std[1] * torch.randn_like(h1) #add noise to hidden layer
+#         if not self.training:
+        h1 = h1 + self.noise_std[1] * torch.randn_like(h1) #add noise to hidden layer
         h2 = self.fc2(h1)
         h2 = self.relu(h2)
         out = self.fc3(h2)

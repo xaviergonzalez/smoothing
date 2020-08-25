@@ -43,7 +43,7 @@ parser.add_argument('--gpu', default=None, type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--noise_std_lst', nargs = '+', type = int, default=[], help='noise for each layer')
+parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 args = parser.parse_args()
 
 

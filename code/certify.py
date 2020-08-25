@@ -1,7 +1,7 @@
 # evaluate a smoothed classifier on a dataset
 import argparse
 import os
-import setGPU
+# import setGPU
 from datasets import get_dataset, DATASETS, get_num_classes
 from core import Smooth
 from time import time
@@ -21,13 +21,19 @@ parser.add_argument("--split", choices=["train", "test"], default="test", help="
 parser.add_argument("--N0", type=int, default=100)
 parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
+parser.add_argument('--gpu', default=None, type=str,
+                    help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 parser.add_argument('--layered_GNI', dest='layered_GNI', action='store_true')
 parser.add_argument('--no_layered_GNI', dest='layered_GNI', action='store_false')
+parser.add_argument('--mean', dest='vol', action='store_true')
+parser.add_argument('--min', dest='vol', action='store_false')
 parser.set_defaults(feature=False)
 args = parser.parse_args()
 
 if __name__ == "__main__":
+    if args.gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     # load the base classifier
     checkpoint = torch.load(args.base_classifier)
     base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst)
@@ -38,7 +44,7 @@ if __name__ == "__main__":
 
     # prepare output file
     f = open(args.outfile, 'w')
-    print("idx\tlabel\tpredict\tradius\tcorrect\ttime", file=f, flush=True)
+    print("idx\tlabel\tpredict\tradius\tcorrect\tbTr\tbDet\tfTr\tfDet\ttime", file=f, flush=True)
 
     # iterate through the dataset
     dataset = get_dataset(args.dataset, args.split)
@@ -56,14 +62,14 @@ if __name__ == "__main__":
         # certify the prediction of g around x
         x = x.cuda()
         if args.layered_GNI:
-            prediction, radius = smoothed_classifier.jac_certify(x, args.N0, args.N, args.alpha, args.batch, args.noise_std_lst)
+            prediction, radius, Bt, Bd, Ft, Fd = smoothed_classifier.jac_certify(x, args.N0, args.N, args.alpha, args.batch,                                                                  args.noise_std_lst, args.vol)
         else:
-            prediction, radius = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
+            prediction, radius, Bt, Bd, Ft, Fd = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
         after_time = time()
         correct = int(prediction == label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        print("{}\t{}\t{}\t{:.3}\t{}\t{}".format(
-            i, label, prediction, radius, correct, time_elapsed), file=f, flush=True)
+        print("{}\t{}\t{}\t{:.3}\t{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{}".format(
+            i, label, prediction, radius, correct, Bt, Bd, Ft, Fd, time_elapsed), file=f, flush=True)
 
     f.close()
