@@ -11,7 +11,7 @@ import geotorch
 
 # Fully connected neural network with one hidden layer
 class MLP(nn.Module):
-    def __init__(self, input_size, hidden_size, second_layer, num_classes, noise_std):
+    def __init__(self, input_size, hidden_size, second_layer, num_classes, noise_std, nonlinear):
         super(MLP, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size) 
         self.relu = nn.LeakyReLU(negative_slope = 0.1) #leaky relu to keep invertible
@@ -19,6 +19,7 @@ class MLP(nn.Module):
         self.fc3 = nn.Linear(second_layer, num_classes)
         self.input_size = input_size
         self.noise_std = noise_std
+        self.nonlinear = nonlinear
 #         geotorch.orthogonal(self.fc1, "weight") #first weight is orthogonal
     
     def forward(self, x):
@@ -26,13 +27,14 @@ class MLP(nn.Module):
 #         if not self.training:
         x = x + self.noise_std[0] * torch.randn_like(x) #add noise to data
         h1 = self.fc1(x)
-#        h1 = self.relu(h1)
+        if self.nonlinear:
+            h1 = self.relu(h1)
 #         if not self.training:
-        h1 = h1 + self.noise_std[1] * torch.randn_like(h1) #add noise to hidden layer
-        h2 = self.fc2(h1)
+        nh1 = h1 + self.noise_std[1] * torch.randn_like(h1) #add noise to hidden layer
+        h2 = self.fc2(nh1)
         h2 = self.relu(h2)
         out = self.fc3(h2)
-        return out
+        return out, h1
 
 def mlp(**kwargs):
     """

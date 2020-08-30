@@ -8,6 +8,11 @@ from scipy.stats import gmean
 
 from time import time
 
+import math
+
+from utils import flex_tuple
+from find_jacobian import find_jacobian
+
 
 class Smooth(object):
     """A smoothed classifier g """
@@ -72,17 +77,21 @@ class Smooth(object):
         """
         self.base_classifier.eval()
         #find approximate backwards jacobian
-        tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
-        A = tst_lst[0]
+#         tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
+#         A = tst_lst[0]
+        x.requires_grad_(True)
+        A = find_jacobian(x, self.base_classifier(x)[1]).cpu().numpy()
+        hid_len, inp_len = np.shape(A)
         R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
-        B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R))
-        B = B + (self.sigma ** 2) * np.identity(444) #pullback noise
-        F = (noise_std_lst[1] ** 2) * np.identity(444) + (self.sigma ** 2) * (A @ np.transpose(A)) #accumulated noise at hidden layer
+        B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R)) + (self.sigma ** 2) * np.identity(inp_len) #pullback noise
+        F = (noise_std_lst[1] ** 2) * np.identity(hid_len) + (self.sigma ** 2) * (A @ np.transpose(A)) #accumulated noise at hidden layer
         eigvals, _ = np.linalg.eig(B)
-        Feigvals, _ = np.linalg.eig(F)
+#         Feigvals, _ = np.linalg.eig(F)
         radii = np.sqrt(eigvals)
         if vol:
-            s = gmean(radii) #area (ellipsoid)
+#             log_volume_const = (inp_len/2) * np.log(math.pi) - math.lgamma(inp_len/2 + 1)
+#             s = np.prod(radii) * np.exp(log_volume_const) #we will now return VOLUME instead of scaled radius
+            s = gmean(radii)
         else:
             s = np.min(radii) #sphere (tight)
         # draw samples of f(x+ epsilon)
@@ -95,10 +104,14 @@ class Smooth(object):
         nA = counts_estimation[cAHat].item()
         pABar = self._lower_confidence_bound(nA, n, alpha)
         if pABar < 0.5:
-            return Smooth.ABSTAIN, 0.0, np.mean(eigvals), s, np.mean(Feigvals), gmean(np.sqrt(Feigvals))
+            return Smooth.ABSTAIN, 0.0, np.mean(eigvals), gmean(radii)
         else:
-            radius = s * norm.ppf(pABar)
-            return cAHat, radius, np.mean(eigvals), s, np.mean(Feigvals), gmean(np.sqrt(Feigvals))
+            if vol:
+#                 radius = s * (norm.ppf(pABar) ** inp_len)
+                radius = s * norm.ppf(pABar)
+            else:
+                radius = s * norm.ppf(pABar)
+            return cAHat, radius, np.mean(eigvals), gmean(radii)
         
     def jac_certify_check(self, x: torch.tensor, label: int, n: int, alpha: float, batch_size: int, noise_std_lst) -> (int, float):
         """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
@@ -118,10 +131,10 @@ class Smooth(object):
         #find approximate backwards jacobian
         tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
         A = tst_lst[0]
+        hid_len, inp_len = np.shape(A)
         R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
-        S = (noise_std_lst[1] ** 2) * (R @ np.transpose(R))
-        S = S + (self.sigma ** 2) * np.identity(444)
-        eigvals, eigvecs = np.linalg.eig(S)
+        B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R)) + (self.sigma ** 2) * np.identity(inp_len)
+        eigvals, eigvecs = np.linalg.eig(B)
         radii = np.sqrt(eigvals)
         # draw more samples of f(x + epsilon)
         counts_estimation = self._sample_noise(x, n, batch_size)
@@ -189,7 +202,7 @@ class Smooth(object):
 #                 print(np.shape(batch))
                 noise = torch.randn_like(batch, device='cuda') * self.sigma
 #                 print(noise)
-                predictions = self.base_classifier(batch + noise).argmax(1)
+                predictions = flex_tuple(self.base_classifier(batch + noise)).argmax(1)
                 counts += self._count_arr(predictions.cpu().numpy(), self.num_classes)
             return counts
 

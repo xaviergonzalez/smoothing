@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import StepLR
 import time
 import datetime
 from train_utils import AverageMeter, accuracy, init_logfile, log
+from utils import flex_tuple
 
 import numpy as np
 
@@ -43,6 +44,10 @@ parser.add_argument('--gpu', default=None, type=str,
                     help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument('--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
+parser.add_argument('--hidden_size', default=444, type=int,
+                    help="size of the first hidden layer")
+parser.add_argument('--nonlinear', default=0, type=int,
+                    help="is the first hidden layer linear or non-linear")
 parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 args = parser.parse_args()
 
@@ -61,10 +66,11 @@ def main():
                               num_workers=args.workers, pin_memory=pin_memory)
     test_loader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch,
                              num_workers=args.workers, pin_memory=pin_memory)
-
-    model = get_architecture(args.arch, args.dataset, noise_std = args.noise_std_lst)
+    
+    model = get_architecture(args.arch, args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear)
 
     logfilename = os.path.join(args.outdir, 'log.txt')
+    print(logfilename)
     init_logfile(logfilename, "epoch\ttime\tlr\ttrain loss\ttrain acc\ttestloss\ttest acc")
 
     criterion = CrossEntropyLoss().cuda()
@@ -72,15 +78,19 @@ def main():
     scheduler = StepLR(optimizer, step_size=args.lr_step_size, gamma=args.gamma)
 
     for epoch in range(args.epochs):
-        scheduler.step(epoch)
+#         scheduler.step(epoch)
         before = time.time()
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, args.noise_sd)
+        scheduler.step()
         test_loss, test_acc = test(test_loader, model, criterion, args.noise_sd)
         after = time.time()
 
+#         log(logfilename, "{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}".format(
+#             epoch, str(datetime.timedelta(seconds=(after - before))),
+#             scheduler.get_lr()[0], train_loss, train_acc, test_loss, test_acc))
         log(logfilename, "{}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}\t{:.3}".format(
             epoch, str(datetime.timedelta(seconds=(after - before))),
-            scheduler.get_lr()[0], train_loss, train_acc, test_loss, test_acc))
+            scheduler.get_last_lr()[0], train_loss, train_acc, test_loss, test_acc))
 
         torch.save({
             'epoch': epoch + 1,
@@ -112,7 +122,7 @@ def train(loader: DataLoader, model: torch.nn.Module, criterion, optimizer: Opti
         inputs = inputs + torch.randn_like(inputs, device='cuda') * noise_sd
 
         # compute output
-        outputs = model(inputs)
+        outputs = flex_tuple(model(inputs))
         loss = criterion(outputs, targets)
 
         # measure accuracy and record loss
@@ -166,7 +176,7 @@ def test(loader: DataLoader, model: torch.nn.Module, criterion, noise_sd: float)
             inputs = inputs + torch.randn_like(inputs, device='cuda') * noise_sd
 
             # compute output
-            outputs = model(inputs)
+            outputs = flex_tuple(model(inputs))
             loss = criterion(outputs, targets)
 
             # measure accuracy and record loss
