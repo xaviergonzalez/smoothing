@@ -6,3 +6,11 @@ def flex_tuple(x):
         return x[0]
     else:
         return x
+    
+def convert_to_relu(x):
+    "converts from True and False to the appropriate slopes for leaky ReLU"
+    if x:
+        return 1.0
+    else:
+        return 0.1
+   

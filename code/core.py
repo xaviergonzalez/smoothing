@@ -10,7 +10,7 @@ from time import time
 
 import math
 
-from utils import flex_tuple
+from utils import flex_tuple, convert_to_relu
 from find_jacobian import find_jacobian
 
 
@@ -77,12 +77,15 @@ class Smooth(object):
                  in the case of abstention, the class will be ABSTAIN and the radius 0.
         """
         self.base_classifier.eval()
+        tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
+        A = tst_lst[0]
         if nonlinear:
+            #manually find Jacobian
             x.requires_grad_(True)
-            A = find_jacobian(x, self.base_classifier(x)[1]).cpu().numpy()
-        else:
-            tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
-            A = tst_lst[0]
+            mask = (self.base_classifier(x)[1] > 0).cpu().numpy()
+            vf = np.vectorize(convert_to_relu)
+            mask = vf(mask)
+            A = A * mask[:, np.newaxis]
         hid_len, inp_len = np.shape(A)
         R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
 #         B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R)) + (self.sigma ** 2) * np.identity(inp_len) #pullback noise
