@@ -54,76 +54,12 @@ class Smooth(object):
         nA = counts_estimation[cAHat].item()
         pABar = self._lower_confidence_bound(nA, n, alpha)
         if pABar < 0.5:
-            return Smooth.ABSTAIN, 0.0
+            return Smooth.ABSTAIN, 0.0, pABar
         else:
             radius = self.sigma * norm.ppf(pABar)
-            return cAHat, radius
+            return cAHat, radius, pABar
         
-    def jac_certify(self, x: torch.tensor, n0: int, n: int, alpha: float, batch_size: int, noise_std_lst, vol, nonlinear) -> (int, float):
-        """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
-        Differs from certify by returning a radius based on noising later layers
-        With probability at least 1 - alpha, the class returned by this method will equal g(x), and g's prediction will
-        robust within a L2 ball of radius R around x.
-
-        :param x: the input [channel x height x width]
-        :param n0: the number of Monte Carlo samples to use for selection
-        :param n: the number of Monte Carlo samples to use for estimation
-        :param alpha: the failure probability
-        :param batch_size: batch size to use when evaluating the base classifier
-        :param noise_std_lst: lst of noise to apply to each layer (put 0 for data layer)
-        :param vol: boolean to indicate whether to return the volume of robust ellipsoid, or the minimum radius
-        :param nonlinear: boolean to indicate whether our classifier has a nonlinear first layer
-        :return: (predicted class, certified radius)
-                 in the case of abstention, the class will be ABSTAIN and the radius 0.
-        """
-        self.base_classifier.eval()
-        tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
-        A = tst_lst[0]
-        if nonlinear:
-            #manually find Jacobian
-            x.requires_grad_(True)
-            mask = (self.base_classifier(x)[1] > 0).cpu().numpy()
-            vf = np.vectorize(convert_to_relu)
-            mask = vf(mask)
-            A = A * mask[:, np.newaxis]
-        hid_len, inp_len = np.shape(A)
-        R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
-#         B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R)) + (self.sigma ** 2) * np.identity(inp_len) #pullback noise
-#         F = (noise_std_lst[1] ** 2) * np.identity(hid_len) + (self.sigma ** 2) * (A @ np.transpose(A)) #accumulated noise at hidden layer
-#         eigvals, _ = np.linalg.eig(B)
-#         Feigvals, _ = np.linalg.eig(F)
-        #faster to use SVD to get the eigenvalues of R @ R^T
-        a,b,c = np.linalg.svd(R)
-        eig_vals = np.zeros(inp_len)
-        eig_vals[:hid_len] = (noise_std_lst[1] ** 2) * (b ** 2)
-        eig_vals = eig_vals + (self.sigma ** 2)
-        radii = np.sqrt(eig_vals)
-        if vol:
-#             log_volume_const = (inp_len/2) * np.log(math.pi) - math.lgamma(inp_len/2 + 1)
-#             s = np.prod(radii) * np.exp(log_volume_const) #we will now return VOLUME instead of scaled radius
-            s = gmean(radii)
-        else:
-            s = np.min(radii) #sphere (tight)
-        # draw samples of f(x+ epsilon)
-        counts_selection = self._sample_noise(x, n0, batch_size)
-        # use these samples to take a guess at the top class
-        cAHat = counts_selection.argmax().item()
-        # draw more samples of f(x + epsilon)
-        counts_estimation = self._sample_noise(x, n, batch_size)
-        # use these samples to estimate a lower bound on pA
-        nA = counts_estimation[cAHat].item()
-        pABar = self._lower_confidence_bound(nA, n, alpha)
-        if pABar < 0.5:
-            return Smooth.ABSTAIN, 0.0, np.mean(eig_vals), gmean(radii)
-        else:
-            if vol:
-#                 radius = s * (norm.ppf(pABar) ** inp_len)
-                radius = s * norm.ppf(pABar)
-            else:
-                radius = s * norm.ppf(pABar)
-            return cAHat, radius, np.mean(eig_vals), gmean(radii)
-        
-    def jac_certify_check(self, x: torch.tensor, label: int, n: int, alpha: float, batch_size: int, noise_std_lst) -> (int, float):
+    def jac_certify_check(self, x: torch.tensor, label: int, n: int, alpha: float, batch_size: int, pABar: float, radii, eig_vecs) -> (int, float):
         """ Monte Carlo algorithm for certifying that g's prediction around x is constant within some L2 radius.
         Examines whether some of the points on the boundary of the ellipsoid do in fact return the same prediction
 
@@ -132,24 +68,12 @@ class Smooth(object):
         :param n: the number of Monte Carlo samples to use for estimation
         :param alpha: the failure probability
         :param batch_size: batch size to use when evaluating the base classifier
+        :param noise_std_lst: lst of noise to apply to each layer (put 0 for data layer)
+        :param nonlinear: boolean to indicate whether our classifier has a nonlinear first layer
         :return: (predicted class, certified radius)
                  in the case of abstention, the class will be ABSTAIN and the radius 0.
         """
         self.base_classifier.eval()
-#         tst_lst = [param.cpu().detach().numpy() for param in self.base_classifier.parameters()]
-#         A = tst_lst[0]
-        x.requires_grad_(True)
-        A = find_jacobian(x, self.base_classifier(x)[1]).cpu().numpy()
-        hid_len, inp_len = np.shape(A)
-        R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
-        B = (noise_std_lst[1] ** 2) * (R @ np.transpose(R)) + (self.sigma ** 2) * np.identity(inp_len)
-        eigvals, eigvecs = np.linalg.eig(B)
-        radii = np.sqrt(eigvals)
-        # draw more samples of f(x + epsilon)
-        counts_estimation = self._sample_noise(x, n, batch_size)
-        # use these samples to estimate a lower bound on pA
-        nA = counts_estimation[label].item()
-        pABar = self._lower_confidence_bound(nA, n, alpha)
         x = x.detach().cpu().numpy()
         if pABar < 0.5:
             return Smooth.ABSTAIN, Smooth.ABSTAIN
@@ -158,7 +82,7 @@ class Smooth(object):
             robust = 1
             for i in range(len(x)):
                 y = np.copy(x)
-                y = x + radii[i] * eigvecs[:, i]
+                y = x + radii[i] * eig_vecs[:, i]
                 y = y.astype(np.float32)
                 y = torch.from_numpy(y)
                 y = y.cuda()

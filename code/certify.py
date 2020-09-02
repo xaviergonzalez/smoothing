@@ -8,6 +8,11 @@ from time import time
 import torch
 import datetime
 from architectures import get_architecture
+import numpy as np
+
+from utils import convert_to_relu
+
+from scipy.stats import gmean
 
 parser = argparse.ArgumentParser(description='Certify many examples')
 parser.add_argument("dataset", choices=DATASETS, help="which dataset")
@@ -47,8 +52,24 @@ if __name__ == "__main__":
 
     # prepare output file
     f = open(args.outfile, 'w')
-    print("idx\tlabel\tpredict\tradius\tcorrect\tbTr\tbDet\ttime", file=f, flush=True)
+    print("idx\tlabel\tpredict\tradius\tcorrect\tpABar\tbTr\tbDet\ttime", file=f, flush=True)
 
+    #compute spectrum of pullback noise
+    tst_lst = [param.cpu().detach().numpy() for param in base_classifier.parameters()]
+    A = tst_lst[0]
+    hid_len, inp_len = np.shape(A)
+    if not args.nonlinear:
+        R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
+        a,b,c = np.linalg.svd(R)
+        eig_vals = np.zeros(inp_len)
+        eig_vals[:hid_len] = (args.noise_std_lst[1] ** 2) * (b ** 2)
+        eig_vals = eig_vals + (args.sigma ** 2)
+        radii = np.sqrt(eig_vals)
+        Bt = np.mean(eig_vals)
+        Bd = gmean(radii)
+    else:
+        vf = np.vectorize(convert_to_relu)
+        
     # iterate through the dataset
     dataset = get_dataset(args.dataset, args.split)
     for i in range(len(dataset)):
@@ -64,15 +85,32 @@ if __name__ == "__main__":
         before_time = time()
         # certify the prediction of g around x
         x = x.cuda()
+        if args.nonlinear:
+            #manually find Jacobian
+            x.requires_grad_(True)
+            mask = (base_classifier(x)[1] > 0).cpu().numpy()
+            mask = vf(mask)
+            A = A * mask[:, np.newaxis]
+            R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
+            a,b,c = np.linalg.svd(R)
+            eig_vals = np.zeros(inp_len)
+            eig_vals[:hid_len] = (args.noise_std_lst[1] ** 2) * (b ** 2)
+            eig_vals = eig_vals + (args.sigma ** 2)
+            radii = np.sqrt(eig_vals)
+            Bt = np.mean(eig_vals)
+            Bd = gmean(radii)
+        prediction, radius, pABar = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
         if args.layered_GNI:
-            prediction, radius, Bt, Bd = smoothed_classifier.jac_certify(x, args.N0, args.N, args.alpha, args.batch,                                                                  args.noise_std_lst, args.vol, args.nonlinear)
-        else:
-            prediction, radius, Bt, Bd = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
+            radius = radius / args.sigma
+            if args.vol:
+                radius = radius * Bd
+            else:
+                radius = radius * np.min(radii)
         after_time = time()
         correct = int(prediction == label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        print("{}\t{}\t{}\t{:.3}\t{}\t{:.3}\t{:.3}\t{}".format(
-            i, label, prediction, radius, correct, Bt, Bd, time_elapsed), file=f, flush=True)
+        print("{}\t{}\t{}\t{:.3}\t{}\t{:.3}\t{:.3}\t{:.3}\t{}".format(
+            i, label, prediction, radius, correct, pABar, Bt, Bd, time_elapsed), file=f, flush=True)
 
     f.close()
