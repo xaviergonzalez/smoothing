@@ -40,8 +40,6 @@ parser.set_defaults(feature=False)
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     # load the base classifier
     checkpoint = torch.load(args.base_classifier)
     base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear)
@@ -90,14 +88,15 @@ if __name__ == "__main__":
             x.requires_grad_(True)
             mask = (base_classifier(x)[1] > 0).cpu().numpy()
             mask = vf(mask)
-            A = A * mask[:, np.newaxis]
-            R = np.transpose(A) @ np.linalg.inv(A @ np.transpose(A))
+            J = A * mask[:, np.newaxis]
+            R = np.transpose(J) @ np.linalg.inv(J @ np.transpose(J))
             a,b,c = np.linalg.svd(R)
             eig_vals = np.zeros(inp_len)
             eig_vals[:hid_len] = (args.noise_std_lst[1] ** 2) * (b ** 2)
             eig_vals = eig_vals + (args.sigma ** 2)
             radii = np.sqrt(eig_vals)
             Bt = np.mean(eig_vals)
+            print(Bt)
             Bd = gmean(radii)
         prediction, radius, pABar = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
         if args.layered_GNI:

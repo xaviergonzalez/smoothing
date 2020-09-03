@@ -154,17 +154,17 @@ if __name__ == "__main__":
     #adding more hidden layer noise for fixed data noise
     input_noise = ["0.12", "0.25"]
     hlayer_noise = ["0", "0.12", "0.25", "0.5"]
-    HSIZE = 44
+    HSIZE = 444
     h_size = str(HSIZE)
     for i in input_noise:
-        file_mean = "mnist_results/linear/hlayer" + h_size + "/mean/train-" + i + "-"
+        file_mean = "mnist_results/nonlinear/hlayer" + h_size + "/mean/train-" + i + "-"
         plot_certified_accuracy(
-            "TST/plots/mnist_" + i + "_same" + "_hlayer" + h_size, "Volume of robustness ellipsoid", 2, [
+            "TST/plots/nonlinear_mnist_" + i + "_same" + "_hlayer" + h_size, "Volume of robustness ellipsoid", 2, [
                 Line(ApproximateAccuracy(file_mean + s + "/test-" + i + "-" + s), "hidden test noise: $\sigma_h$ =" + s) for s in hlayer_noise
             ])
-        file_min = "mnist_results/linear/hlayer" + h_size + "/min/train-" + i + "-"
+        file_min = "mnist_results/nonlinear/hlayer" + h_size + "/min/train-" + i + "-"
         plot_certified_accuracy(
-            "TST/plots/MIN_mnist_" + i + "_same" + "_hlayer" + h_size , "Minimum radius of robustness", 1.5, [
+            "TST/plots/MIN_nonlinear_mnist_" + i + "_same" + "_hlayer" + h_size , "Minimum radius of robustness", 1.5, [
                 Line(ApproximateAccuracy(file_min + s + "/test-" + i + "-" + s), "hidden test noise: $\sigma_h$ =" + s) for s in hlayer_noise
             ])
 #         # how much does performance actually change when we adjust model training
