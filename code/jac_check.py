@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 radii = np.sqrt(eig_vals)
                 eig_vecs = a
             pABar = row['pABar']
-            pABar  = pABar - 0.0005 #to try to deal with rounding error
+            pABar  = pABar - 0.00005 #to try to deal with rounding error
             idx = row['idx']
             # certify the prediction of g around x
             prediction, robust = smoothed_classifier.jac_certify_check(x, label, args.N0, args.alpha, args.batch, pABar, radii, eig_vecs)

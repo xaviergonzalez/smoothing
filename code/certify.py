@@ -26,8 +26,6 @@ parser.add_argument("--split", choices=["train", "test"], default="test", help="
 parser.add_argument("--N0", type=int, default=100)
 parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
-parser.add_argument('--gpu', default=None, type=str,
-                    help='id(s) for CUDA_VISIBLE_DEVICES')
 parser.add_argument("--hidden_size", type=int, default=444, help="hidden size of mlp")
 parser.add_argument('--nonlinear', default=0, type=int,
                     help="is the first hidden layer linear or non-linear")
@@ -96,7 +94,6 @@ if __name__ == "__main__":
             eig_vals = eig_vals + (args.sigma ** 2)
             radii = np.sqrt(eig_vals)
             Bt = np.mean(eig_vals)
-            print(Bt)
             Bd = gmean(radii)
         prediction, radius, pABar = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
         if args.layered_GNI:
@@ -109,7 +106,7 @@ if __name__ == "__main__":
         correct = int(prediction == label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        print("{}\t{}\t{}\t{:.3}\t{}\t{:.3}\t{:.3}\t{:.3}\t{}".format(
+        print("{}\t{}\t{}\t{:.3}\t{}\t{:.4}\t{:.3}\t{:.3}\t{}".format(
             i, label, prediction, radius, correct, pABar, Bt, Bd, time_elapsed), file=f, flush=True)
 
     f.close()

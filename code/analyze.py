@@ -26,6 +26,14 @@ class ApproximateAccuracy(Accuracy):
 
     def at_radius(self, df: pd.DataFrame, radius: float):
         return (df["correct"] & (df["radius"] >= radius)).mean()
+    
+    def at_vols(self, vols: np.ndarray, dim: int) -> np.ndarray:
+        df = pd.read_csv(self.data_file_path, delimiter="\t")
+        return np.array([self.at_vol(df, vol, dim) for vol in vols])
+
+    def at_vol(self, df: pd.DataFrame, vol: float, dim : int):
+        #return log to fit
+        return (df["correct"] & ((df["radius"] ** dim) >= vol)).mean()
 
 
 class HighProbAccuracy(Accuracy):
@@ -54,7 +62,8 @@ class Line(object):
 
 
 def plot_certified_accuracy(outfile: str, title: str, max_radius: float,
-                            lines: List[Line], radius_step: float = 0.01) -> None:
+                            lines: List[Line], radius_step: float = 0.01, 
+                            x_label = "radius", y_label = "certified accuracy", leg_switch = True) -> None:
     radii = np.arange(0, max_radius + radius_step, radius_step)
     plt.figure()
     for line in lines:
@@ -63,16 +72,38 @@ def plot_certified_accuracy(outfile: str, title: str, max_radius: float,
     plt.ylim((0, 1))
     plt.xlim((0, max_radius))
     plt.tick_params(labelsize=14)
-    plt.xlabel("radius", fontsize=16)
-    plt.ylabel("certified accuracy", fontsize=16)
-    plt.legend([method.legend for method in lines], loc='upper right', fontsize=16)
+    plt.xlabel(x_label, fontsize=16)
+    plt.ylabel(y_label, fontsize=16)
+    if leg_switch:
+        plt.legend([method.legend for method in lines], fontsize=13, loc="upper right")
+    plt.title(title, fontsize=20)
+#     plt.tight_layout()
     plt.savefig(outfile + ".pdf")
-    plt.tight_layout()
     plt.title(title, fontsize=20)
     plt.tight_layout()
     plt.savefig(outfile + ".png", dpi=300)
     plt.close()
+    
+def plot_certified_accuracy_VOL(outfile: str, title: str, dim: int, max_vol: float,
+                            lines: List[Line], vol_step: float = 0.01) -> None:
+    vols = np.arange(0, max_vol + vol_step, vol_step)
+    plt.figure()
+    for line in lines:
+        plt.plot(vols * line.scale_x, line.quantity.at_vols(vols, dim), line.plot_fmt)
 
+    plt.ylim((0, 1))
+    plt.xlim((0, max_vol))
+    plt.tick_params(labelsize=14)
+    plt.xlabel("volume", fontsize=16)
+#     plt.xscale('log')
+    plt.ylabel("certified accuracy", fontsize=16)
+    plt.legend([method.legend for method in lines], loc='upper right', fontsize=16)
+    plt.title(title, fontsize=20)
+    plt.savefig(outfile + ".pdf")
+    plt.tight_layout()
+    plt.tight_layout()
+    plt.savefig(outfile + ".png", dpi=300)
+    plt.close()
 
 def smallplot_certified_accuracy(outfile: str, title: str, max_radius: float,
                                  methods: List[Line], radius_step: float = 0.01, xticks=0.5) -> None:
@@ -148,25 +179,48 @@ def markdown_table_certified_accuracy(outfile: str, radius_start: float, radius_
             f.write(txt)
         f.write("\n")
     f.close()
+    
+def staple(a):
+    return str(a[0]) + "-" + str(a[1])
 
 
 if __name__ == "__main__":
     #adding more hidden layer noise for fixed data noise
-    input_noise = ["0.12", "0.25"]
-    hlayer_noise = ["0", "0.12", "0.25", "0.5"]
-    HSIZE = 444
-    h_size = str(HSIZE)
-    for i in input_noise:
-        file_mean = "mnist_results/nonlinear/hlayer" + h_size + "/mean/train-" + i + "-"
-        plot_certified_accuracy(
-            "TST/plots/nonlinear_mnist_" + i + "_same" + "_hlayer" + h_size, "Volume of robustness ellipsoid", 2, [
-                Line(ApproximateAccuracy(file_mean + s + "/test-" + i + "-" + s), "hidden test noise: $\sigma_h$ =" + s) for s in hlayer_noise
-            ])
-        file_min = "mnist_results/nonlinear/hlayer" + h_size + "/min/train-" + i + "-"
-        plot_certified_accuracy(
-            "TST/plots/MIN_nonlinear_mnist_" + i + "_same" + "_hlayer" + h_size , "Minimum radius of robustness", 1.5, [
-                Line(ApproximateAccuracy(file_min + s + "/test-" + i + "-" + s), "hidden test noise: $\sigma_h$ =" + s) for s in hlayer_noise
-            ])
+#     input_noise = ["0.25"]
+#     hlayer_noise = ["0", "0.12", "0.25", "0.5", "1"]
+#     hsizes = ['20', '44', '200', '444']
+#     for h_size in hsizes:
+#         for i in input_noise:
+#             file_mean = "mnist_results/linear/hlayer" + h_size + "/mean/train-" + i + "-"
+#             vol_title = ""
+#             min_title = ""
+#             vol_xlabel = ""
+#             min_xlabel = ""
+#             leg = False
+#             if h_size == "20":
+#                 vol_title = "Vol. of robustness ellipsoid, "
+#                 min_title = "Min. radius of robustness, "
+#             if h_size == "444":
+#                 vol_xlabel = "radius of sphere with same vol."
+#                 min_xlabel = "radius"
+#                 leg = True
+#     #         plot_certified_accuracy_VOL(
+#     #             "TST/plots/vol_mnist_" + i + "_same" + "_hlayer" + h_size, "Volume of robustness ellipsoid", HSIZE, 200, [
+#     #                 Line(ApproximateAccuracy(file_mean + s + "/test-" + i + "-" + s), "$\sigma_h$ =" + s) for s in hlayer_noise
+#     #             ])
+#             plot_certified_accuracy(
+#                 "LOOK/plots/mnist_" + i + "_same" + "_hlayer" + h_size, vol_title + "$w_1$=" + h_size, 10, [
+#                     Line(ApproximateAccuracy(file_mean + s + "/test-" + i + "-" + s), "$\sigma_1$ =" + s) for s in hlayer_noise
+#                 ], x_label = vol_xlabel, y_label = "")
+#             file_min = "mnist_results/linear/hlayer" + h_size + "/min/train-" + i + "-"
+#             plot_certified_accuracy(
+#                 "LOOK/plots/MIN_mnist_" + i + "_same" + "_hlayer" + h_size, min_title + "$w_1$=" + h_size, 1.1, [
+#                     Line(ApproximateAccuracy(file_min + s + "/test-" + i + "-" + s), "$\sigma_1$ =" + s) for s in hlayer_noise
+#                 ], x_label = min_xlabel, leg_switch = leg)
+#         plot_certified_accuracy_VOL(
+#             "TST/plots/vol_MIN_mnist_" + i + "_same" + "_hlayer" + h_size , "Minimum radius of robustness", HSIZE, 1.5, [
+#                 Line(ApproximateAccuracy(file_min + s + "/test-" + i + "-" + s), "hidden test noise: $\sigma_h$ =" + s) for s in hlayer_noise
+#             ])
 #         # how much does performance actually change when we adjust model training
 #         file_mean = "mnist_results/linear/hlayer444/mean/train-" + i + "-"
 #         plot_certified_accuracy(
@@ -178,27 +232,40 @@ if __name__ == "__main__":
 #             "TST/plots/MIN_mnist_" + i + "_tdif", "Minimum radius of robustness", 1.5, [
 #                 Line(ApproximateAccuracy(file_min + s + "/test-" + i + "-" + i), "hidden train noise: $\sigma_h$ =" + s) for s in hlayer_noise
 #             ])
-#     # performance for same pullback noise
-#     file = "same_pb/mnist/linear/hlayer444/0.25/train-0.25-0.25/"
-#     file2 = "same_pb/mnist/linear/hlayer444/0.25/train-"
-#     noise_arr = ["test-0.12-0.27",  "test-0.25-0.25",  "test-0.5-0.21",  "test-1-0.07"]
-#     noise_arr2 = ["0.12-0.27",  "0.25-0.25",  "0.5-0.21",  "1-0.07"]
-#     latex_table_certified_accuracy(
-#         "TST/latex/mnist_spb", 0, 0.5, 0.1, [
-#             Line(ApproximateAccuracy(file + "mean/" + a), a) for a in noise_arr
-#         ])
-#     plot_certified_accuracy(
-#         "TST/plots/mnist_spb", "MNIST, same det of pb noise, volume of ellipsoid of robustness, tr 0.25 0.25$", 1.5, [
-#             Line(ApproximateAccuracy(file + "mean/" + a), a) for a in noise_arr
-#         ])
-#     latex_table_certified_accuracy(
-#         "TST/latex/MIN_mnist_spb", 0, 0.5, 0.1, [
-#             Line(ApproximateAccuracy(file + "min/" + a), a) for a in noise_arr
-#         ])
-#     plot_certified_accuracy(
-#         "TST/plots/MIN_mnist_spb", "MNIST, same det of pb noise, minimum radius of robustness, tr 0.25 0.25$", 1.5, [
-#            Line(ApproximateAccuracy(file + "min/" + a), a) for a in noise_arr
-#         ])
+    # performance for same pullback noise
+    pb_dict = {0.12: 0.56,
+               0.25: 1.16,
+               0.5: 2.32,
+               1: 4.63}
+    noise_dict = {0.12: [(0.12,0.12), (0.25, 0.094), (0.5, 0.02), (0.556,0)],
+                 0.25: [(0.12,0.27),  (0.25,0.25),  (0.5,0.21),  (1, 0.056)],
+                 0.5: [(0.12, 0.55), (0.25, 0.535), (0.5,0.5), (1,0.4)],
+                 1: [(0.12, 1.11), (0.25,1.1), (0.5, 1.07), (1,1)]}
+    for n in [0.12, 0.25, 0.5, 1]:
+        vol_title = ""
+        min_title = ""
+        vol_xlabel = ""
+        min_xlabel = ""
+        if n == 0.12:
+            vol_title = "Vol. of robustness ellipsoid, "
+            min_title = "Min. radius of robustness, "
+        if n == 1:
+            vol_xlabel = "radius of sphere with same vol."
+            min_xlabel = "radius"
+        file = "same_pb/mnist/linear/hlayer444/"+ str(n) + "/train-"
+        noise_arr = noise_dict[n]
+        plot_certified_accuracy(
+            "LOOK/plots/mnist_spb_" + str(pb_dict[n]), vol_title + "Pullback Det:" + str(pb_dict[n]), 10, [
+                Line(ApproximateAccuracy(file + staple(a) + "/mean/test-" + staple(a)), "$\sigma_0 =$" + str(a[0]) + ",$\sigma_1 = $" + str(a[1])) for a in noise_arr
+            ],
+        x_label = vol_xlabel,
+        y_label = "",
+        leg_switch = False)
+        plot_certified_accuracy(
+            "LOOK/plots/MIN_mnist_spb_" + str(pb_dict[n]), min_title + "Pullback Det:" + str(pb_dict[n]), 2, [
+               Line(ApproximateAccuracy(file + staple(a) + "/min/test-" + staple(a)), "$\sigma_0 =$" + str(a[0]) + ",$\sigma_1 = $" + str(a[1])) for a in noise_arr
+            ],
+        x_label = min_xlabel)
     # performance when tested against model trained in same way
 #     latex_table_certified_accuracy(
 #         "TST/latex/mnist_spb_same", 0, 0.5, 0.1, [
