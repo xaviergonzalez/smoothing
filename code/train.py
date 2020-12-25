@@ -48,6 +48,8 @@ parser.add_argument('--hidden_size', default=444, type=int,
                     help="size of the first hidden layer")
 parser.add_argument('--nonlinear', default=0, type=int,
                     help="is the first hidden layer linear or non-linear")
+parser.add_argument('--long', default=0, type=int,
+                    help="do we use a four hidden layer MLP")
 parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 args = parser.parse_args()
 
@@ -67,7 +69,7 @@ def main():
     test_loader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch,
                              num_workers=args.workers, pin_memory=pin_memory)
     
-    model = get_architecture(args.arch, args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear)
+    model = get_architecture(args.arch, args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear, long = args.long)
 
     logfilename = os.path.join(args.outdir, 'log.txt')
     print(logfilename)

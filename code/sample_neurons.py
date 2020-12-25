@@ -1,5 +1,4 @@
-# evaluate a smoothed classifier on a dataset, and give radius of robustness
-# additional code allows for multilayer GNI
+# sample the neurons from the classification layer of an MLP
 import argparse
 import os
 # import setGPU
@@ -15,7 +14,7 @@ from utils import convert_to_relu
 
 from scipy.stats import gmean
 
-parser = argparse.ArgumentParser(description='Certify many examples')
+parser = argparse.ArgumentParser(description='Evaluate a smoothed classifier')
 parser.add_argument("dataset", choices=DATASETS, help="which dataset")
 parser.add_argument("base_classifier", type=str, help="path to saved pytorch model of base classifier")
 parser.add_argument("sigma", type=float, help="noise hyperparameter")
@@ -24,32 +23,29 @@ parser.add_argument("--batch", type=int, default=1000, help="batch size")
 parser.add_argument("--skip", type=int, default=1, help="how many examples to skip")
 parser.add_argument("--max", type=int, default=-1, help="stop after this many examples")
 parser.add_argument("--split", choices=["train", "test"], default="test", help="train or test set")
-parser.add_argument("--N0", type=int, default=100)
-parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
+parser.add_argument("--N", type=int, default=1000, help = "numer of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
 parser.add_argument("--hidden_size", type=int, default=444, help="hidden size of mlp")
 parser.add_argument('--nonlinear', default=0, type=int,
                     help="is the first hidden layer linear or non-linear")
+parser.add_argument('--long', default=0, type=int,
+                    help="do we use a four hidden layer MLP")
 parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 parser.add_argument('--layered_GNI', dest='layered_GNI', action='store_true')
 parser.add_argument('--no_layered_GNI', dest='layered_GNI', action='store_false')
-parser.add_argument('--mean', dest='vol', action='store_true')
-parser.add_argument('--min', dest='vol', action='store_false')
 parser.set_defaults(feature=False)
 args = parser.parse_args()
 
 if __name__ == "__main__":
     # load the base classifier
     checkpoint = torch.load(args.base_classifier)
-    base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear)
+    base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear, long = args.long)
     base_classifier.load_state_dict(checkpoint['state_dict'])
-
+    
+    
+    NC = get_num_classes(args.dataset)
     # create the smooothed classifier g
-    smoothed_classifier = Smooth(base_classifier, get_num_classes(args.dataset), args.sigma)
-
-    # prepare output file
-    f = open(args.outfile, 'w')
-    print("idx\tlabel\tpredict\tradius\tcorrect\tpABar\tbTr\tbDet\ttime", file=f, flush=True)
+    smoothed_classifier = Smooth(base_classifier, NC, args.sigma)
 
     #compute spectrum of pullback noise
     tst_lst = [param.cpu().detach().numpy() for param in base_classifier.parameters()]
@@ -62,16 +58,26 @@ if __name__ == "__main__":
         eig_vals[:hid_len] = (args.noise_std_lst[1] ** 2) * (b ** 2)
         eig_vals = eig_vals + (args.sigma ** 2)
         radii = np.sqrt(eig_vals)
-        Bt = np.mean(eig_vals)
+        Bt = eig_vals
+#         Bt = np.mean(eig_vals)
         Bd = gmean(radii)
     else:
         vf = np.vectorize(convert_to_relu)
+    
+    # prepare output file
+    col_numbs = args.N
+    f = open(args.outfile, 'w')
+    label_string = ""
+    for i in range(col_numbs - 1):
+        label_string = label_string + str(i) + "\t"
+    label_string = label_string + str(col_numbs - 1)
+    print(label_string, file=f, flush=True)
         
     # iterate through the dataset
     dataset = get_dataset(args.dataset, args.split)
     for i in range(len(dataset)):
 
-        # only certify every args.skip examples, and stop after args.max examples
+        # only evaluate every args.skip examples, and stop after args.max examples
         if i % args.skip != 0:
             continue
         if i == args.max:
@@ -80,7 +86,7 @@ if __name__ == "__main__":
         (x, label) = dataset[i]
 
         before_time = time()
-        # certify the prediction of g around x
+        # evaluate the prediction of g around x
         x = x.cuda()
         if args.nonlinear:
             #manually find Jacobian
@@ -94,20 +100,17 @@ if __name__ == "__main__":
             eig_vals[:hid_len] = (args.noise_std_lst[1] ** 2) * (b ** 2)
             eig_vals = eig_vals + (args.sigma ** 2)
             radii = np.sqrt(eig_vals)
-            Bt = np.mean(eig_vals)
+            Bt = eig_vals
+            #Bt = np.mean(eig_vals)
             Bd = gmean(radii)
-        prediction, radius, pABar = smoothed_classifier.certify(x, args.N0, args.N, args.alpha, args.batch)
-        if args.layered_GNI:
-            radius = radius / args.sigma
-            if args.vol:
-                radius = radius * Bd
-            else:
-                radius = radius * np.min(radii)
+        prediction = smoothed_classifier.predict(x, args.N, args.alpha, args.batch)
         after_time = time()
         correct = int(prediction == label)
+        
+        counts = smoothed_classifier.see_sample_noise(x, args.N, args.batch, label)
 
         time_elapsed = str(datetime.timedelta(seconds=(after_time - before_time)))
-        print("{}\t{}\t{}\t{:.3}\t{}\t{:.4}\t{:.3}\t{:.3}\t{}".format(
-            i, label, prediction, radius, correct, pABar, Bt, Bd, time_elapsed), file=f, flush=True)
+        #print(output_string.format(Bt), file=f, flush=True)
+        print(*counts, sep="\t", file=f, flush = True)
 
     f.close()

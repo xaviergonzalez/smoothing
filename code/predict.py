@@ -20,6 +20,8 @@ parser.add_argument("--max", type=int, default=-1, help="stop after this many ex
 parser.add_argument("--split", choices=["train", "test"], default="test", help="train or test set")
 parser.add_argument("--N", type=int, default=100000, help="number of samples to use")
 parser.add_argument("--alpha", type=float, default=0.001, help="failure probability")
+parser.add_argument('--nonlinear', default=0, type=int,
+                    help="are non-linearities applied?")
 parser.add_argument("--hidden_size", type=int, default=444, help="size of hidden layer for mlp")
 parser.add_argument('--noise_std_lst', nargs = '+', type = float, default=[], help='noise for each layer')
 args = parser.parse_args()
@@ -27,7 +29,7 @@ args = parser.parse_args()
 if __name__ == "__main__":
     # load the base classifier
     checkpoint = torch.load(args.base_classifier)
-    base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size)
+    base_classifier = get_architecture(checkpoint["arch"], args.dataset, noise_std = args.noise_std_lst, hidden_size = args.hidden_size, nonlinear = args.nonlinear)
     base_classifier.load_state_dict(checkpoint['state_dict'])
 
     # create the smoothed classifier g
